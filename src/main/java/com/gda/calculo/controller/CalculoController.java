@@ -24,10 +24,19 @@ public class CalculoController {
 	@Autowired
 	CalculosService service;
 	
-	@GetMapping("/api/calculo/{pconvenio}/{uconsecutivo}")
+	@GetMapping("/api/calculo/previo/{pconvenio}/{uconsecutivo}")
 	public ResponseEntity<List<CalculoDto>> getCalculos(@PathVariable Long pconvenio, @PathVariable String uconsecutivo) {
 		
 		return ResponseEntity.ok(service.getCalculos(pconvenio, uconsecutivo));
+	}
+	
+	
+	@GetMapping("/api/calculo/definitivo/{pconvenio}/{uconsecutivo}/{pbdefinitivo}/{puserid}/{pmaxamount}")
+	public ResponseEntity<List<CalculoDto>> getCalculos(@PathVariable Long pconvenio, @PathVariable String uconsecutivo, @PathVariable Boolean pbdefinitivo, @PathVariable Integer puserid,
+			@PathVariable Integer pmaxamount) {
+		List<CalculoDto> list = service.getCalculos(pconvenio, uconsecutivo);
+		service.actualizaciones(pconvenio, uconsecutivo, pbdefinitivo, puserid, pmaxamount, list);
+		return ResponseEntity.ok(list);
 	}
 	
 

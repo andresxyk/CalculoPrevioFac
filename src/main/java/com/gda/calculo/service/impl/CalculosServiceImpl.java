@@ -110,6 +110,7 @@ public class CalculosServiceImpl extends JdbcDaoSupport implements CalculosServi
 		list = this.getJdbcTemplate().query(strsql, new CalculoMapper());
 		log.info("Registros obtenidos " + list.size());
 		getDatosAdicionales(pCconvenio, pUconsecutivo, list);
+		actualizaciones(pCconvenio, pUconsecutivo, true, 1, -1, list);
 		return list;
 	}
 
@@ -129,12 +130,12 @@ public class CalculosServiceImpl extends JdbcDaoSupport implements CalculosServi
 
 		for (CalculoDto calculoDto : lstCalculos) {
 			if (var3.equals("kordensucursal")) {
-				var2 = " select distinct lower(trim (translate (sdatoadicional, '. ', '_'))) as nombrecampo, cda.cdatoadicional, tda.kordensucursal as llave, translate (tda.svalor, '''', ' ') svalor, cconvenio "
+				var2 = " select distinct lower(trim (translate (sdatoadicional, '. ', '_'))) as nombrecampo, cda.cdatoadicional, tda.kordensucursal as llave, translate (tda.svalor, '', ' ') svalor, cconvenio "
 						+ " from t_dato_adicional tda,  c_dato_adicional cda where tda.cdatoadicional = cda.cdatoadicional and cda.cconvenio = "
 						+ (pCconvenio) + " and tda.kordensucursal in ( " + calculoDto.getConsecutivo() + " )";
 
 				list = this.getJdbcTemplate().query(var2, new DatosAdicionalesMapper());
-				int j=1;
+				int j = 1;
 				for (int i = 0; i < list.size(); i++) {
 					if (!list.get(i).getSdatoadicional4().trim().equals("")) {
 						switch (j) {
@@ -174,11 +175,11 @@ public class CalculosServiceImpl extends JdbcDaoSupport implements CalculosServi
 				}
 			}
 			if (var3.equals("kpaciente")) {
-				var2 = " select distinct lower(trim (translate (sdatoadicional, '. ', '_'))) as nombrecampo, cda.cdatoadicional, tda.kpaciente as llave, translate (tda.svalor, '''', ' ') svalor, cconvenio "
+				var2 = " select distinct lower(trim (translate (sdatoadicional, '. ', '_'))) as nombrecampo, cda.cdatoadicional, tda.kpaciente as llave, translate (tda.svalor, '', ' ') svalor, cconvenio "
 						+ " from t_dato_adicional tda,  c_dato_adicional cda  where tda.cdatoadicional = cda.cdatoadicional and cda.cconvenio in (309,310,311,312) and tda.kpaciente in ( "
 						+ calculoDto.getKPaciente() + " ) ";
 				list = this.getJdbcTemplate().query(var2, new DatosAdicionalesMapper());
-				int j=1;
+				int j = 1;
 				for (int i = 0; i < list.size(); i++) {
 					if (!list.get(i).getSdatoadicional4().trim().equals("")) {
 						switch (j) {
@@ -234,73 +235,118 @@ public class CalculosServiceImpl extends JdbcDaoSupport implements CalculosServi
 	public void actualizaciones(Long pCconvenio, String pUconsecutivo, Boolean pBdefinitivo, Integer pUserid,
 			Integer pMaxamount, List<CalculoDto> lstCalculos) {
 		String strsql;
-		if( pBdefinitivo = true  && pMaxamount == -1  && pCconvenio != 309 && pCconvenio != 310 && pCconvenio != 311 && pCconvenio != 312) { 
-				log.info("entre global");
 
-				strsql = "select ufolioactual into v_folioactual from c_control_folio where sserie = 'A' AND CSUCURSAL = 1003 AND CESTADOREGISTRO=31";
-				String vFolioActual = this.getJdbcTemplate().queryForObject(strsql, String.class);
-				
+		strsql = "select ec.cmarca from e_convenio ec where cconvenio=" + pCconvenio;
+		Integer cmarcasucursal = this.getJdbcTemplate().queryForObject(strsql, Integer.class);
+		Integer csucursalmarca = 0;
+		String sseriemarca = "";
+		Integer centidadlegalmarca = 0;
+		String ssucursalmarca = "";
 
-				strsql = "select decode (sum (msubtotal),null, -1,sum (msubtotal))::numeric validaactualizaciones, '||'''insert into t_factura values(t_factura_sequence.nextval,(select kdatofiscal from c_convenio_dato_fiscal where cconvenio = " + pCconvenio + ")'||'"+
-				",''''EMPRESAS'''',"+vFolioActual+1+",(select ccliente from c_convenio  where cconvenio ='"+pCconvenio+"')'||',1003,1,'''"+
-				"||'||sum (msubtotal)||'''"+
-				"||',0.00,0.00,'''"+
-				"||'||sum (miva)||'','''"+
-				"||'||sum (mtotal)||'''"+
-				"||',1, " + pCconvenio + ", '''' '''', ''''  '''', 1,sysdate,33,sysdate,"+ pUserid +","+pUserid+", '''' '''' ,'''' '''' ,  '''' '''', ''''A'''');"+
-				"'' as inserta  , "+
-
-				"''update c_control_folio set ufolioactual = "+vFolioActual+1+" where csucursal = 1003 and cestadoregistro=31 and sserie=''''A'''';'' as updfolio "+
-
-				",''update t_orden_sucursal_fac set kfactura = (select kfactura from t_factura where sserie=''''A'''' and csucursal = 1003 and ufoliofactura = "+vFolioActual+1+")"+
-				", cestadoregistro= 35 where cconvenio = " + pCconvenio + " and cestadoregistro = 37 and kordensucursalfac in (select distinct (kordensucursalfac) from facturacion.'|| p_nombretabla ||'"+
-				"where uconsecutivo in (" + pUconsecutivo + ") and cconvenio =" + pCconvenio + ");'' as updfact , "+
-
-				"''update t_orden_examen_sucursal_fac set kfactura = (select kfactura from t_factura where sserie=''''A'''' and csucursal = 1003 and ufoliofactura = " + vFolioActual + 1 + ") "+
-				"where cestadoregistro <> 43 and kordensucursalfac in (select distinct (kordensucursalfac) from facturacion.'|| p_nombretabla ||'"+
-				"where uconsecutivo in (" + pUconsecutivo + ") and cconvenio =" + pCconvenio + ");'' as updexafact ,"+
-
-				"''update  facturacion.'||p_nombretabla ||' set kfactura = (select kfactura from t_factura where sserie=''''A'''' and csucursal = 1003 and ufoliofactura = " + vFolioActual + 1 + ") "+
-				" , ufoliofactura = " + vFolioActual + 1 + " where kordensucursalfac in (select distinct (kordensucursalfac) from facturacion.'|| p_nombretabla ||'"+
-				"where uconsecutivo in(" + pUconsecutivo + ") and cconvenio =" + pCconvenio + ");'' as updprevio "+
-				
-				"from facturacion.'|| p_nombretabla ||' tfb"+
-				"where cconvenio = " + pCconvenio + " and uconsecutivo in (" + pUconsecutivo + ");" ;
-
-				 log.info("SQL To Execute: "+ strsql);
-
-
-			/*for registro in
-
-			execute  strsql
-
-			loop
-
-				if registro.validaactualizaciones > 0 then
-					log.info("SQL To Execute: %', registro.inserta;
-					execute immediate registro.inserta;
-
-					log.info("SQL To Execute: %', registro.updfolio;
-					execute immediate registro.updfolio;
-
-					log.info("SQL To Execute: %', registro.updfact;
-					execute immediate registro.updfact;
-
-					log.info("SQL To Execute: %', registro.updexafact;
-					execute immediate registro.updexafact;
-
-					log.info("SQL To Execute: %', registro.updprevio;
-					execute immediate registro.updprevio;
-				else 
-					log.info("Solitud sin datos para el convenio: % con bloque(s): %', p_cconvenio , p_uconsecutivo;
-				end if;
-				
-			end loop;
-			
-				ret :=  0; --(folio::numeric);
-				return   ret;*/
+		if (cmarcasucursal == 1) {
+			csucursalmarca = 1003;
+			sseriemarca = "A";
+			centidadlegalmarca = 1;
+			ssucursalmarca = "EMPRESAS";
+		} else if (cmarcasucursal == 4) {
+			csucursalmarca = 1012;
+			sseriemarca = "AZ";
+			centidadlegalmarca = 5;
+			ssucursalmarca = "EMPRESAS AZTECA";
+		} else if (cmarcasucursal == 5) {
+			csucursalmarca = 1013;
+			sseriemarca = "AS";
+			centidadlegalmarca = 6;
+			ssucursalmarca = "EMPRESAS SWISSLAB";
+		} else if (cmarcasucursal == 7) {
+			csucursalmarca = 0;
+			sseriemarca = "XXXXX";
+			centidadlegalmarca = 7;
+			ssucursalmarca = "";
 		}
+
+		if (pBdefinitivo = true && pMaxamount == -1 && pCconvenio != 309 && pCconvenio != 310 && pCconvenio != 311
+				&& pCconvenio != 312) {
+			log.info("entre global");
+			strsql = "select ufolioactual from c_control_folio where sserie = '" + sseriemarca + "' AND CSUCURSAL = "
+					+ csucursalmarca + " AND CESTADOREGISTRO=31";
+			String vFolioActual = this.getJdbcTemplate().queryForObject(strsql, String.class);
+
+			for (CalculoDto dto : lstCalculos) {
+
+				strsql = "insert into t_factura values(t_factura_sequence.nextval,(select kdatofiscal from c_convenio_dato_fiscal where cconvenio = "
+						+ pCconvenio + ")'||'" + ",'" + ssucursalmarca + "'," + vFolioActual + 1
+						+ ",(select ccliente from c_convenio  where cconvenio ='" + pCconvenio + "')'||',"
+						+ csucursalmarca + ",1,'" + "||'||sum (msubtotal)||'" + "||',0.00,0.00,'"
+						+ "||'||sum (miva)||'','''" + "||'||sum (mtotal)||'''" + "||',1, " + pCconvenio
+						+ ", ' ', '  ', " + centidadlegalmarca + ",sysdate,33,sysdate," + pUserid + "," + pUserid
+						+ ", ' ' ,' ' ,  ' ', '" + sseriemarca + "');";
+
+				this.getJdbcTemplate().execute(strsql);
+
+				strsql = "update c_control_folio set ufolioactual = " + vFolioActual + 1 + " where csucursal = "
+						+ csucursalmarca + " and cestadoregistro=31 and sserie='" + sseriemarca + "'; ";
+				this.getJdbcTemplate().execute(strsql);
+
+				strsql = "update t_orden_sucursal_fac set kfactura = (select kfactura from t_factura where sserie='"
+						+ sseriemarca + "' and csucursal = " + csucursalmarca + " and ufoliofactura = " + vFolioActual
+						+ 1 + ")" + ", cestadoregistro= 35 where cconvenio = " + pCconvenio
+						+ " and cestadoregistro = 37 and kordensucursalfac in (" + dto.getConsecutivo() + ");";
+				this.getJdbcTemplate().execute(strsql);
+
+				strsql = "update t_orden_examen_sucursal_fac set kfactura = (select kfactura from t_factura where sserie='"
+						+ sseriemarca + "' and csucursal = " + csucursalmarca + " and ufoliofactura = " + vFolioActual
+						+ 1 + ") " + "where cestadoregistro <> 43 and kordensucursalfac in (" + dto.getConsecutivo()
+						+ ");";
+				this.getJdbcTemplate().execute(strsql);
+
+			}
+
 		
+		}
+
+		if (pBdefinitivo = true && pMaxamount > -1 && pCconvenio != 309 && pCconvenio != 310 && pCconvenio != 311
+				&& pCconvenio != 312) {
+			Double macumulador = 0.0;
+			for (CalculoDto dto : lstCalculos) {
+				macumulador = macumulador + Double.valueOf(dto.getMTotal());
+
+				strsql = "select ufolioactual  from c_control_folio where sserie = " + sseriemarca + " AND CSUCURSAL = "
+						+ csucursalmarca + " AND CESTADOREGISTRO=31";
+				Long vFolioActual = this.getJdbcTemplate().queryForObject(strsql, Long.class);
+
+				strsql = "insert into t_factura values(t_factura_sequence.nextval,(select kdatofiscal from c_convenio_dato_fiscal where cconvenio = '"
+						+ pCconvenio + "')'||'" + ",'" + ssucursalmarca + "'," + vFolioActual + 1
+						+ ",(select ccliente from c_convenio  where cconvenio ='" + pCconvenio + "')'||',"
+						+ csucursalmarca + ",1,'''" + "||'||sum (msubtotal)||'''" + "||',0.00,0.00,'''"
+						+ "||'||sum (miva)||'','''" + "||'||sum (mtotal)||'''" + "||',1, " + pCconvenio
+						+ ", ' ', '  ', '" + centidadlegalmarca + "',sysdate,33,sysdate," + pUserid + "," + pUserid
+						+ ", ' ' ,' ' ,  ' ', '" + sseriemarca + "');";
+				this.getJdbcTemplate().execute(strsql);
+
+				strsql = "update c_control_folio set ufolioactual = " + vFolioActual + 1 + " where csucursal = "
+						+ csucursalmarca + " and cestadoregistro=31 and sserie='" + sseriemarca + "';";
+
+				if (macumulador < pMaxamount) {
+					strsql = "update t_orden_sucursal_fac set kfactura = (select kfactura from t_factura where sserie='"
+							+ sseriemarca + "' and csucursal = " + csucursalmarca + " and ufoliofactura = "
+							+ vFolioActual + 1 + ")" + ", cestadoregistro= 35 where cconvenio = '" + pCconvenio
+							+ "'and cestadoregistro = 37 and kordensucursalfac in (" + dto.getConsecutivo() + ");";
+					this.getJdbcTemplate().execute(strsql);
+				}
+
+				if (macumulador < pMaxamount) {
+					strsql = "update t_orden_examen_sucursal_fac set kfactura = (select kfactura from t_factura where sserie='"
+							+ sseriemarca + "' and csucursal = " + csucursalmarca + " and ufoliofactura = "
+							+ vFolioActual + 1 + ") " + "where cestadoregistro <> 43 and kordensucursalfac in ('"
+							+ dto.getConsecutivo() + "');";
+					this.getJdbcTemplate().execute(strsql);
+				}
+
+			}
+
+		}
+
 	}
 
 }
