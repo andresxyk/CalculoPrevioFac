@@ -24,18 +24,18 @@ public class CalculoController {
 	@Autowired
 	CalculosService service;
 	
-	@GetMapping("/api/calculo/previo/{pconvenio}/{uconsecutivo}")
-	public ResponseEntity<List<FuncionFacturacionDto>> getCalculos(@PathVariable Long pconvenio, @PathVariable String uconsecutivo) {
+	@GetMapping("/api/calculo/previo/{pconvenio}/{uconsecutivo}/{ntipoprevio}")
+	public ResponseEntity<List<FuncionFacturacionDto>> getCalculos(@PathVariable Long pconvenio, @PathVariable String uconsecutivo, @PathVariable String ntipoprevio) {
 		
-		return ResponseEntity.ok(service.getCalculos(pconvenio, uconsecutivo));
+		return ResponseEntity.ok(service.getCalculos(pconvenio, uconsecutivo, ntipoprevio));
 	}
 	
 	
-	@GetMapping("/api/calculo/definitivo/{pconvenio}/{uconsecutivo}/{pbdefinitivo}/{puserid}/{pmaxamount}")
+	@GetMapping("/api/calculo/definitivo/{pconvenio}/{uconsecutivo}/{pbdefinitivo}/{puserid}/{pmaxamount}/{prazon}/{ntipoprevio}")
 	public ResponseEntity<List<FuncionFacturacionDto>> getCalculos(@PathVariable Long pconvenio, @PathVariable String uconsecutivo, @PathVariable Boolean pbdefinitivo, @PathVariable Integer puserid,
-			@PathVariable Integer pmaxamount) {
-		List<FuncionFacturacionDto> list = service.getCalculos(pconvenio, uconsecutivo);
-		service.actualizaciones(pconvenio, uconsecutivo, pbdefinitivo, puserid, pmaxamount, list);
+			@PathVariable Integer pmaxamount, @PathVariable Integer prazon, @PathVariable String ntipoprevio) {
+		List<FuncionFacturacionDto> list = service.getCalculos(pconvenio, uconsecutivo, ntipoprevio );
+		service.actualizaciones(pconvenio, uconsecutivo, pbdefinitivo, puserid, pmaxamount, prazon, list );
 		return ResponseEntity.ok(list);
 	}
 	

@@ -14,6 +14,7 @@ import org.springframework.stereotype.Service;
 import com.gda.calculo.dto.ClasificacionDto;
 import com.gda.calculo.dto.DatosAdicionalesDto;
 import com.gda.calculo.dto.FuncionFacturacionDto;
+import com.gda.calculo.dto.mapper.CalculoMapper;
 import com.gda.calculo.dto.mapper.ClasificacionMapper;
 import com.gda.calculo.dto.mapper.DatosAdicionalesMapper;
 import com.gda.calculo.dto.mapper.FuncionFacturacionMapper;
@@ -38,25 +39,40 @@ public class CalculosServiceImpl extends JdbcDaoSupport implements CalculosServi
 	DataSource dataSource;
 
 	@Override
-	public List<FuncionFacturacionDto> getCalculos(Long pCconvenio, String pUconsecutivo) {
+	public List<FuncionFacturacionDto> getCalculos(Long pCconvenio, String pUconsecutivo, String ntipoprevio) {
 		String var1, strsql;
+		String opc = "";
+		String select = "";
+		
+		if(ntipoprevio.equals("1")){	
+			select = " consecutivo,consecutivofac,kpaciente,noconvenio,nombrepaciente,codigoestudio,nombreestudio,costo_unitario,miva,mtotal,totalfactura,bloque,fechaorden,sclasificacioncomercial,ufoliofactura,kfactura ";
+			opc = " order by Bloque, "
+					+ "	Consecutivo, "
+					+ "	CodigoEstudio;";
+		} else if(ntipoprevio.equals("2")) {
+		} else if(ntipoprevio.equals("3")) {
+			select = " ufoliofactura, kfactura , NoConvenio, CodigoEstudio, count (CodigoEstudio) cantidad, NombreEstudio, sum (costo_unitario) msubtotal, sum(miva) miva , sum(mtotal) mtotal, Bloque ";
+			opc = "  group by ufoliofactura, kfactura , NoConvenio, CodigoEstudio, NombreEstudio, Bloque order by NoConvenio, CodigoEstudio;";
+		}
+		
 		List<FuncionFacturacionDto> list = null;
 		if (pCconvenio != 309 && pCconvenio != 310 && pCconvenio != 311 && pCconvenio != 312)
 			var1 = " and tosf.cconvenio = " + (pCconvenio);
 		else
 			var1 = " and tosf.cconvenio in (309,310,311,312)";
 
-		strsql = "select tosf.kordensucursal as Consecutivo, tosf.kordensucursalfac as Consecutivofac,	tp.kpaciente, "
+		strsql = "select "+ select +" from ("
+				+ "select tosf.kordensucursal as Consecutivo, tosf.kordensucursalfac as Consecutivofac,	tp.kpaciente, "
 				+ "tosf.cconvenio as NoConvenio,	"
 				+ "tp.sapellidopaterno||' '||tp.sapellidomaterno||' '||tp.snombre as NombrePaciente,	"
 				+ "toesf.cexamen as CodigoEstudio,	                                                                                    "
 				+ "				toesf.sexamen as NombreEstudio,	                                                                        "
-				+ "				round (sum((toesf.mfacturaempresa/1.16)),2) costo_unitario,                                             "
-				+ "				round (sum((toesf.mfacturaempresa/1.16)),2)*.16 miva,                                                   "
-				+ "				round (sum((toesf.mfacturaempresa/1.16)),2)+ (round (sum((toesf.mfacturaempresa/1.16)),2)*.16) mtotal,  "
+				+ "				 sum(toesf.mfacturaempresa) costo_unitario,                                             "
+				+ "				 sum(toesf.mfacturaempresa) miva,                                                   "
+				+ "				 sum(toesf.mfacturaempresa) mtotal,  "
 				+ "				sum (toesf.mfacturaempresa) as TotalFactura,	                                                        "
 				+ "				tosf.uconsecutivo as Bloque,	                                                                        "
-				+ "				to_char(tos.dregistro,'dd-mm-yyyy') as FechaOrden, ccc.sclasificacioncomercial	                    "
+				+ "				to_char(tos.dregistro,'dd-mm-yyyy') as FechaOrden, ccc.sclasificacioncomercial, '0' as ufoliofactura, '0' as kfactura                  "
 				+ "			from	t_orden_sucursal tos,t_orden_sucursal_fac tosf,                                                     "
 				+ "				t_orden_examen_sucursal_fac toesf,                                                                      "
 				+ "				c_examen ce, c_convenio cc,c_cliente ccl, t_paciente tp	, c_clasificacion_comercial ccc                 "
@@ -76,19 +92,19 @@ public class CalculosServiceImpl extends JdbcDaoSupport implements CalculosServi
 				+ "				and toesf.cestadoregistro <> 43" + var1
 				+ " and toesf.kordensucursalfac = tosf.kordensucursalfac	    "
 				+ "			group by tosf.kordensucursal, tosf.kordensucursalfac, tp.kpaciente, tosf.uorden,cc.ccliente, tosf.cconvenio ,cc.sconvenio, toesf.cexamen,toesf.sexamen, ccl.srazonsocial, "
-				+ "			tp.sapellidopaterno, tp.sapellidomaterno, tp.snombre,tos.sobservacion,tosf.dregistro,tosf.uconsecutivo,tos.dregistro, sclasificacioncomercial "
+				+ "			tp.sapellidopaterno, tp.sapellidomaterno, tp.snombre,tos.sobservacion,tosf.dregistro,tosf.uconsecutivo,tos.dregistro, sclasificacioncomercial"
 				+ "	UNION ALL																									"
 				+ "			select	tosf.kordensucursal as Consecutivo, tosf.kordensucursalfac as Consecutivofac, tp.kpaciente,	        "
 				+ "				tosf.cconvenio as NoConvenio,	                                                                        "
 				+ "				tp.sapellidopaterno||' '||tp.sapellidomaterno||' '||tp.snombre as NombrePaciente, 	                "
 				+ "				toesf.cperfil as CodigoEstudio,	                                                                        "
 				+ "				toesf.sperfil as NombreEstudio,                                                                         "
-				+ "				round (sum((toesf.mfacturaempresa/1.16)),2) costo_unitario,                                             "
-				+ "				round (sum((toesf.mfacturaempresa/1.16)),2)*.16 miva,                                                   "
-				+ "				round (sum((toesf.mfacturaempresa/1.16)),2)+ (round (sum((toesf.mfacturaempresa/1.16)),2)*.16) mtotal,  "
+				+ "				 sum(toesf.mfacturaempresa) costo_unitario,                                            					"
+				+ "				 sum(toesf.mfacturaempresa) miva,                                                   					"
+				+ "				 sum(toesf.mfacturaempresa) mtotal,  "
 				+ "				sum(toesf.mfacturaempresa) as TotalFactura,	                                                            "
 				+ "				tosf.uconsecutivo as Bloque,	                                                                        "
-				+ "				to_char(tos.dregistro,'dd-mm-yyyy') as FechaOrden, 'LABORATORIO' as sclasificacioncomercial	        "
+				+ "				to_char(tos.dregistro,'dd-mm-yyyy') as FechaOrden, 'LABORATORIO' as sclasificacioncomercial, '0' as ufoliofactura, '0' as kfactura 	        "
 				+ "			from 	t_orden_sucursal tos,t_orden_sucursal_fac tosf, t_orden_examen_sucursal_fac toesf, c_convenio cc, c_cliente ccl, 	"
 				+ "				t_paciente tp, c_perfil cp																				   "
 				+ "			where	toesf.kordensucursal = tosf.kordensucursal 	                                                           "
@@ -106,8 +122,15 @@ public class CalculosServiceImpl extends JdbcDaoSupport implements CalculosServi
 				+ " and toesf.kordensucursalfac = tosf.kordensucursalfac "
 				+ "			group by	tosf.kordensucursal, tosf.kordensucursalfac , tp.kpaciente, tosf.uorden,cc.ccliente, tosf.cconvenio ,cc.sconvenio, toesf.cperfil ,toesf.sperfil , ccl.srazonsocial,	"
 				+ "				tp.sapellidopaterno, tp.sapellidomaterno, tp.snombre, tos.sobservacion,tosf.dregistro,tosf.uconsecutivo,tos.dregistro, sclasificacioncomercial	"
-				+ "			ORDER BY 1 ,6";
-		list = this.getJdbcTemplate().query(strsql, new FuncionFacturacionMapper());
+				+ "			ORDER BY 1 ,6)"
+				+ " x " + opc;
+		
+		if(ntipoprevio.equals("1")){	
+			list = this.getJdbcTemplate().query(strsql, new FuncionFacturacionMapper());
+		} else if(ntipoprevio.equals("2")) {
+		} else if(ntipoprevio.equals("3")) {
+			list = this.getJdbcTemplate().query(strsql, new CalculoMapper());
+		}
 		log.info("Registros obtenidos " + list.size());
 		getDatosAdicionales(pCconvenio, pUconsecutivo, list);
 		
@@ -233,7 +256,7 @@ public class CalculosServiceImpl extends JdbcDaoSupport implements CalculosServi
 
 	@Override
 	public void actualizaciones(Long pCconvenio, String pUconsecutivo, Boolean pBdefinitivo, Integer pUserid,
-			Integer pMaxamount, List<FuncionFacturacionDto> lstCalculos) {
+			Integer pMaxamount, Integer p_razon, List<FuncionFacturacionDto> lstCalculos) {
 		String strsql;
 
 		strsql = "select ec.cmarca from e_convenio ec where cconvenio=" + pCconvenio;
@@ -244,25 +267,87 @@ public class CalculosServiceImpl extends JdbcDaoSupport implements CalculosServi
 		String ssucursalmarca = "";
 
 		if (cmarcasucursal == 1) {
-			csucursalmarca = 1003;
-			sseriemarca = "A";
-			centidadlegalmarca = 1;
-			ssucursalmarca = "EMPRESAS";
+		    csucursalmarca = 1003;
+		    sseriemarca = "A";
+		    centidadlegalmarca = 1;
+		    ssucursalmarca = "EMPRESAS";
 		} else if (cmarcasucursal == 4) {
-			csucursalmarca = 1012;
-			sseriemarca = "AZ";
-			centidadlegalmarca = 5;
-			ssucursalmarca = "EMPRESAS AZTECA";
+		    csucursalmarca = 1012;
+		    sseriemarca = "AZ";
+		    centidadlegalmarca = 5;
+		    ssucursalmarca = "EMPRESAS AZTECA";
 		} else if (cmarcasucursal == 5) {
-			csucursalmarca = 1013;
-			sseriemarca = "AS";
-			centidadlegalmarca = 6;
-			ssucursalmarca = "EMPRESAS SWISSLAB";
+		    csucursalmarca = 1013;
+		    sseriemarca = "AS";
+		    centidadlegalmarca = 6;
+		    ssucursalmarca = "EMPRESAS SWISSLAB";
+		} else if (cmarcasucursal == 15) {
+		    csucursalmarca = 1017;
+		    sseriemarca = "ASL";
+		    centidadlegalmarca = 16;
+		    ssucursalmarca = "EMPRESAS LIACSA";
+		} else if (cmarcasucursal == 19) {
+		    csucursalmarca = 1020;
+		    sseriemarca = "AFN";
+		    centidadlegalmarca = 19;
+		    ssucursalmarca = "EMPRESAS FAMILYLABS NORTE";
+		} else if (cmarcasucursal == 20) {
+		    csucursalmarca = 1021;
+		    sseriemarca = "AJK";
+		    centidadlegalmarca = 20;
+		    ssucursalmarca = "EMPRESAS EXAKTA";
+		} else if (cmarcasucursal == 16) {
+		    csucursalmarca = 1024;
+		    sseriemarca = "AIO";
+		    centidadlegalmarca = 18;
+		    ssucursalmarca = "EMPRESAS MOREIRA";
+		} else if (cmarcasucursal == 21) {
+		    csucursalmarca = 1022;
+		    sseriemarca = "AAS";
+		    centidadlegalmarca = 21;
+		    ssucursalmarca = "EMPRESAS ASESORES DEL SUR";
+		} else if (cmarcasucursal == 22) {
+		    csucursalmarca = 1023;
+		    sseriemarca = "AIM";
+		    centidadlegalmarca = 22;
+		    ssucursalmarca = "EMPRESAS POLAB";
+		} else if (cmarcasucursal == 23) {
+		    csucursalmarca = 1027;
+		    sseriemarca = "AIP";
+		    centidadlegalmarca = 23;
+		    ssucursalmarca = "EMPRESAS LISTER";
+		} else if (cmarcasucursal == 25) {
+		    csucursalmarca = 1024;
+		    sseriemarca = "AMZ";
+		    centidadlegalmarca = 25;
+		    ssucursalmarca = "EMPRESAS BR";
+		} else if (cmarcasucursal == 26) {
+		    csucursalmarca = 1025;
+		    sseriemarca = "AIN";
+		    centidadlegalmarca = 26;
+		    ssucursalmarca = "EMPRESAS PROMEDIC";
+		} else if (cmarcasucursal == 9) {
+		    csucursalmarca = 1028;
+		    sseriemarca = "AIQ";
+		    centidadlegalmarca = 10;
+		    ssucursalmarca = "EMPRESAS SWISSHOSPITAL";
 		} else if (cmarcasucursal == 7) {
-			csucursalmarca = 0;
-			sseriemarca = "XXXXX";
-			centidadlegalmarca = 7;
-			ssucursalmarca = "";
+		    if (p_razon == 1) {
+		        csucursalmarca = 1014;
+		        sseriemarca = "AJP";
+		        centidadlegalmarca = 7;
+		        ssucursalmarca = "EMPRESAS JENNER PRADO";
+		    } else if (p_razon == 2) {
+		        csucursalmarca = 1015;
+		        sseriemarca = "AJL";
+		        centidadlegalmarca = 8;
+		        ssucursalmarca = "EMPRESAS JENNER LEAN";
+		    } else if (p_razon == 3) {
+		        csucursalmarca = 1012;
+		        sseriemarca = "AZ";
+		        centidadlegalmarca = 5;
+		        ssucursalmarca = "EMPRESAS AZTECA";
+		    }
 		}
 
 		if (pBdefinitivo = true && pMaxamount == -1 && pCconvenio != 309 && pCconvenio != 310 && pCconvenio != 311

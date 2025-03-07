@@ -3,36 +3,44 @@
  */
 package com.gda.calculo.dto.mapper;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 
 import org.springframework.jdbc.core.RowMapper;
 
-import com.gda.calculo.dto.CalculoDto;
+import com.gda.calculo.dto.FuncionFacturacionDto;
 
 /**
  * 
  */
-public class CalculoMapper implements RowMapper<CalculoDto> {
+public class CalculoMapper implements RowMapper<FuncionFacturacionDto> {
 
 	@Override
-	public CalculoDto mapRow(ResultSet rs, int rowNum) throws SQLException {
-		Integer column = 1;
-		CalculoDto dto = new CalculoDto();
-		dto.setConsecutivo(rs.getLong(column++));
-		dto.setConsecutivoFac(rs.getLong(column++));
-		dto.setKPaciente(rs.getString(column++));
-		dto.setNoConvenio(rs.getString(column++));
-		dto.setNombrePaciente(rs.getString(column++));
-		dto.setCodigoEstudio(rs.getString(column++));
-		dto.setNombreEstudio(rs.getString(column++));
-		dto.setCostoUnitario(rs.getString(column++));
-		dto.setMIva(rs.getString(column++));
-		dto.setMTotal(rs.getString(column++));
-		dto.setTotalFactura(rs.getString(column++));
-		dto.setBloque(rs.getString(column++));
-		dto.setFechaOrden(rs.getString(column++));
-		dto.setSClasificacionComercial(rs.getString(column++));
+	public FuncionFacturacionDto mapRow(ResultSet rs, int rowNum) throws SQLException {
+		FuncionFacturacionDto dto = new FuncionFacturacionDto();
+		BigDecimal subtotal = new BigDecimal(0);
+		BigDecimal iva = new BigDecimal(0);
+		BigDecimal total = new BigDecimal(0);
+		
+
+		dto.setCconvenio(rs.getInt("noconvenio"));
+		dto.setCexamen(rs.getInt("codigoestudio"));
+		dto.setCantidad(rs.getString("cantidad"));
+		dto.setSexamen(rs.getString("nombreestudio"));
+		
+		subtotal = rs.getBigDecimal("msubtotal");
+		subtotal = subtotal.divide(BigDecimal.valueOf(1.16), 2, RoundingMode.HALF_UP);
+		dto.setMsubtotal(subtotal.setScale(2, RoundingMode.HALF_UP));
+		
+		iva = rs.getBigDecimal("miva");
+		iva = iva.divide(BigDecimal.valueOf(1.16),2, RoundingMode.HALF_UP).multiply(BigDecimal.valueOf(0.16));
+		dto.setMiva(iva.setScale(2, RoundingMode.HALF_UP));
+		
+		total = subtotal.add(iva);
+		dto.setMtotal(total.setScale(2, RoundingMode.HALF_UP));
+		dto.setUconsecutivo(rs.getInt("bloque"));
 		return dto;
 	}
 
