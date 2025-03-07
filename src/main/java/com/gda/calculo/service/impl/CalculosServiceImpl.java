@@ -11,12 +11,12 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.support.JdbcDaoSupport;
 import org.springframework.stereotype.Service;
 
-import com.gda.calculo.dto.CalculoDto;
 import com.gda.calculo.dto.ClasificacionDto;
 import com.gda.calculo.dto.DatosAdicionalesDto;
-import com.gda.calculo.dto.mapper.CalculoMapper;
+import com.gda.calculo.dto.FuncionFacturacionDto;
 import com.gda.calculo.dto.mapper.ClasificacionMapper;
 import com.gda.calculo.dto.mapper.DatosAdicionalesMapper;
+import com.gda.calculo.dto.mapper.FuncionFacturacionMapper;
 import com.gda.calculo.service.CalculosService;
 
 import jakarta.annotation.PostConstruct;
@@ -38,9 +38,9 @@ public class CalculosServiceImpl extends JdbcDaoSupport implements CalculosServi
 	DataSource dataSource;
 
 	@Override
-	public List<CalculoDto> getCalculos(Long pCconvenio, String pUconsecutivo) {
+	public List<FuncionFacturacionDto> getCalculos(Long pCconvenio, String pUconsecutivo) {
 		String var1, strsql;
-		List<CalculoDto> list = null;
+		List<FuncionFacturacionDto> list = null;
 		if (pCconvenio != 309 && pCconvenio != 310 && pCconvenio != 311 && pCconvenio != 312)
 			var1 = " and tosf.cconvenio = " + (pCconvenio);
 		else
@@ -107,15 +107,15 @@ public class CalculosServiceImpl extends JdbcDaoSupport implements CalculosServi
 				+ "			group by	tosf.kordensucursal, tosf.kordensucursalfac , tp.kpaciente, tosf.uorden,cc.ccliente, tosf.cconvenio ,cc.sconvenio, toesf.cperfil ,toesf.sperfil , ccl.srazonsocial,	"
 				+ "				tp.sapellidopaterno, tp.sapellidomaterno, tp.snombre, tos.sobservacion,tosf.dregistro,tosf.uconsecutivo,tos.dregistro, sclasificacioncomercial	"
 				+ "			ORDER BY 1 ,6";
-		list = this.getJdbcTemplate().query(strsql, new CalculoMapper());
+		list = this.getJdbcTemplate().query(strsql, new FuncionFacturacionMapper());
 		log.info("Registros obtenidos " + list.size());
 		getDatosAdicionales(pCconvenio, pUconsecutivo, list);
-		actualizaciones(pCconvenio, pUconsecutivo, true, 1, -1, list);
+		
 		return list;
 	}
 
 	@Override
-	public List<CalculoDto> getDatosAdicionales(Long pCconvenio, String pUconsecutivo, List<CalculoDto> lstCalculos) {
+	public List<FuncionFacturacionDto> getDatosAdicionales(Long pCconvenio, String pUconsecutivo, List<FuncionFacturacionDto> lstCalculos) {
 		List<DatosAdicionalesDto> list = null;
 		String var1, var2, var3, strsql;
 
@@ -128,11 +128,11 @@ public class CalculosServiceImpl extends JdbcDaoSupport implements CalculosServi
 
 		}
 
-		for (CalculoDto calculoDto : lstCalculos) {
+		for (FuncionFacturacionDto calculoDto : lstCalculos) {
 			if (var3.equals("kordensucursal")) {
 				var2 = " select distinct lower(trim (translate (sdatoadicional, '. ', '_'))) as nombrecampo, cda.cdatoadicional, tda.kordensucursal as llave, translate (tda.svalor, '', ' ') svalor, cconvenio "
 						+ " from t_dato_adicional tda,  c_dato_adicional cda where tda.cdatoadicional = cda.cdatoadicional and cda.cconvenio = "
-						+ (pCconvenio) + " and tda.kordensucursal in ( " + calculoDto.getConsecutivo() + " )";
+						+ (pCconvenio) + " and tda.kordensucursal in ( " + calculoDto.getKordensucursal() + " )";
 
 				list = this.getJdbcTemplate().query(var2, new DatosAdicionalesMapper());
 				int j = 1;
@@ -177,7 +177,7 @@ public class CalculosServiceImpl extends JdbcDaoSupport implements CalculosServi
 			if (var3.equals("kpaciente")) {
 				var2 = " select distinct lower(trim (translate (sdatoadicional, '. ', '_'))) as nombrecampo, cda.cdatoadicional, tda.kpaciente as llave, translate (tda.svalor, '', ' ') svalor, cconvenio "
 						+ " from t_dato_adicional tda,  c_dato_adicional cda  where tda.cdatoadicional = cda.cdatoadicional and cda.cconvenio in (309,310,311,312) and tda.kpaciente in ( "
-						+ calculoDto.getKPaciente() + " ) ";
+						+ calculoDto.getKpaciente() + " ) ";
 				list = this.getJdbcTemplate().query(var2, new DatosAdicionalesMapper());
 				int j = 1;
 				for (int i = 0; i < list.size(); i++) {
@@ -221,11 +221,11 @@ public class CalculosServiceImpl extends JdbcDaoSupport implements CalculosServi
 			strsql = "select distinct(ccc.cexamen) cexamen, ccc.ccliente, cc.cconvenio, sclasificacioncliente "
 					+ "		from c_clasificacion_cliente ccc,  c_convenio cc "
 					+ "		where ccc.ccliente= cc.ccliente " + "		and cc." + var1 + "     and ccc.cexamen in ("
-					+ calculoDto.getCodigoEstudio() + ")";
+					+ calculoDto.getCexamen() + ")";
 			List<ClasificacionDto> lstClasificacion = null;
 			lstClasificacion = this.getJdbcTemplate().query(strsql, new ClasificacionMapper());
 			if (lstClasificacion.size() > 0)
-				calculoDto.setSClasificacionComercial(lstClasificacion.get(0).getSclasificacioncliente());
+				calculoDto.setSclasificacioncomercial(lstClasificacion.get(0).getSclasificacioncliente());
 		}
 
 		return lstCalculos;
@@ -233,7 +233,7 @@ public class CalculosServiceImpl extends JdbcDaoSupport implements CalculosServi
 
 	@Override
 	public void actualizaciones(Long pCconvenio, String pUconsecutivo, Boolean pBdefinitivo, Integer pUserid,
-			Integer pMaxamount, List<CalculoDto> lstCalculos) {
+			Integer pMaxamount, List<FuncionFacturacionDto> lstCalculos) {
 		String strsql;
 
 		strsql = "select ec.cmarca from e_convenio ec where cconvenio=" + pCconvenio;
@@ -272,7 +272,7 @@ public class CalculosServiceImpl extends JdbcDaoSupport implements CalculosServi
 					+ csucursalmarca + " AND CESTADOREGISTRO=31";
 			String vFolioActual = this.getJdbcTemplate().queryForObject(strsql, String.class);
 
-			for (CalculoDto dto : lstCalculos) {
+			for (FuncionFacturacionDto dto : lstCalculos) {
 
 				strsql = "insert into t_factura values(t_factura_sequence.nextval,(select kdatofiscal from c_convenio_dato_fiscal where cconvenio = "
 						+ pCconvenio + ")'||'" + ",'" + ssucursalmarca + "'," + vFolioActual + 1
@@ -291,12 +291,12 @@ public class CalculosServiceImpl extends JdbcDaoSupport implements CalculosServi
 				strsql = "update t_orden_sucursal_fac set kfactura = (select kfactura from t_factura where sserie='"
 						+ sseriemarca + "' and csucursal = " + csucursalmarca + " and ufoliofactura = " + vFolioActual
 						+ 1 + ")" + ", cestadoregistro= 35 where cconvenio = " + pCconvenio
-						+ " and cestadoregistro = 37 and kordensucursalfac in (" + dto.getConsecutivo() + ");";
+						+ " and cestadoregistro = 37 and kordensucursalfac in (" + dto.getKordensucursalfac() + ");";
 				this.getJdbcTemplate().execute(strsql);
 
 				strsql = "update t_orden_examen_sucursal_fac set kfactura = (select kfactura from t_factura where sserie='"
 						+ sseriemarca + "' and csucursal = " + csucursalmarca + " and ufoliofactura = " + vFolioActual
-						+ 1 + ") " + "where cestadoregistro <> 43 and kordensucursalfac in (" + dto.getConsecutivo()
+						+ 1 + ") " + "where cestadoregistro <> 43 and kordensucursalfac in (" + dto.getKordensucursalfac()
 						+ ");";
 				this.getJdbcTemplate().execute(strsql);
 
@@ -308,8 +308,8 @@ public class CalculosServiceImpl extends JdbcDaoSupport implements CalculosServi
 		if (pBdefinitivo = true && pMaxamount > -1 && pCconvenio != 309 && pCconvenio != 310 && pCconvenio != 311
 				&& pCconvenio != 312) {
 			Double macumulador = 0.0;
-			for (CalculoDto dto : lstCalculos) {
-				macumulador = macumulador + Double.valueOf(dto.getMTotal());
+			for (FuncionFacturacionDto dto : lstCalculos) {
+				macumulador = macumulador + dto.getMtotal().doubleValue();
 
 				strsql = "select ufolioactual  from c_control_folio where sserie = " + sseriemarca + " AND CSUCURSAL = "
 						+ csucursalmarca + " AND CESTADOREGISTRO=31";
@@ -331,7 +331,7 @@ public class CalculosServiceImpl extends JdbcDaoSupport implements CalculosServi
 					strsql = "update t_orden_sucursal_fac set kfactura = (select kfactura from t_factura where sserie='"
 							+ sseriemarca + "' and csucursal = " + csucursalmarca + " and ufoliofactura = "
 							+ vFolioActual + 1 + ")" + ", cestadoregistro= 35 where cconvenio = '" + pCconvenio
-							+ "'and cestadoregistro = 37 and kordensucursalfac in (" + dto.getConsecutivo() + ");";
+							+ "'and cestadoregistro = 37 and kordensucursalfac in (" + dto.getKordensucursalfac() + ");";
 					this.getJdbcTemplate().execute(strsql);
 				}
 
@@ -339,7 +339,7 @@ public class CalculosServiceImpl extends JdbcDaoSupport implements CalculosServi
 					strsql = "update t_orden_examen_sucursal_fac set kfactura = (select kfactura from t_factura where sserie='"
 							+ sseriemarca + "' and csucursal = " + csucursalmarca + " and ufoliofactura = "
 							+ vFolioActual + 1 + ") " + "where cestadoregistro <> 43 and kordensucursalfac in ('"
-							+ dto.getConsecutivo() + "');";
+							+ dto.getKordensucursalfac() + "');";
 					this.getJdbcTemplate().execute(strsql);
 				}
 
